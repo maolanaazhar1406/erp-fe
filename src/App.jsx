@@ -1,6 +1,7 @@
-import { Navigate, Route, Routes } from 'react-router-dom';
+import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
 import { TopProgress } from './components/Loading';
+import ErrorBoundary from './components/ErrorBoundary';
 import Layout from './components/Layout';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
@@ -13,17 +14,18 @@ function RequireAuth({ children }) {
 }
 
 export default function App() {
+  const location = useLocation();
   return (
     <>
       <TopProgress />
       <Routes>
         <Route path="/login" element={<Login />} />
         <Route element={<RequireAuth><Layout /></RequireAuth>}>
-          <Route index element={<Dashboard />} />
-          <Route path="r/:key" element={<ResourcePage />} />
-          <Route path="r/:key/:id" element={<ResourcePage />} />
-          <Route path="reports" element={<ReportPage />} />
-          <Route path="reports/:slug" element={<ReportPage />} />
+          <Route index element={<ErrorBoundary key={location.pathname}><Dashboard /></ErrorBoundary>} />
+          <Route path="r/:key" element={<ErrorBoundary key={location.pathname}><ResourcePage /></ErrorBoundary>} />
+          <Route path="r/:key/:id" element={<ErrorBoundary key={location.pathname}><ResourcePage /></ErrorBoundary>} />
+          <Route path="reports" element={<ErrorBoundary key={location.pathname}><ReportPage /></ErrorBoundary>} />
+          <Route path="reports/:slug" element={<ErrorBoundary key={location.pathname}><ReportPage /></ErrorBoundary>} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

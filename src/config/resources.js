@@ -178,7 +178,21 @@ export const resources = {
     title: 'Pembayaran', path: '/api/v1/payments', detail: true, create: true,
     fields: [
       { name: 'payment_type', label: 'Jenis', type: 'select', options: ['receivable', 'payable'], required: true },
-      { name: 'reference_id', label: 'ID referensi (SO/PO)', type: 'number', required: true },
+      {
+        name: 'reference_id', label: 'Referensi (SO/PO)', type: 'select', required: true,
+        // Pilihan bergantung pada payment_type
+        dependsOn: 'payment_type',
+        refBy: {
+          receivable: {
+            resource: 'sales-orders',
+            label: o => `${o.so_number} • ${o.customer_name} • Rp ${Number(o.total_amount || 0).toLocaleString('id-ID')}`,
+          },
+          payable: {
+            resource: 'purchase-orders',
+            label: o => `${o.po_number} • ${o.supplier_name} • Rp ${Number(o.total_amount || 0).toLocaleString('id-ID')}`,
+          },
+        },
+      },
       { name: 'amount', label: 'Jumlah', type: 'number', required: true },
       { name: 'payment_date', label: 'Tanggal bayar', type: 'date', required: true },
       { name: 'payment_method', label: 'Metode', default: 'bank_transfer' },

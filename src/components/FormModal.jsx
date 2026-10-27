@@ -31,7 +31,7 @@ const toPayload = (f, val) => {
   return val;
 };
 
-function FieldInput({ f, value, onChange, opts }) {
+function FieldInput({ f, value, parentValue, onChange, opts }) {
   if (f.type === 'permissions') {
     const list = opts.permissions || [];
     const toggle = id => onChange(value.includes(id) ? value.filter(x => x !== id) : [...value, id]);
@@ -51,20 +51,43 @@ function FieldInput({ f, value, onChange, opts }) {
       </div>
     );
   }
+
   if (f.type === 'select') {
-    const list = f.options
-      ? f.options.map(o => ({ value: o, label: o }))
-      : (opts[f.optionsFrom] || []).map(o => ({ value: o.id, label: o[f.optionLabel || 'name'] }));
+    const ref = f.refBy && parentValue ? f.refBy[parentValue] : null;
+    const refKey = `ref:${parentValue}`;
+    let list = [];
+    let placeholder = '-- pilih --';
+
+    if (f.refBy) {
+      if (!ref) placeholder = 'Pilih jenis dulu';
+      else if (!opts[refKey]) placeholder = 'Memuat...';
+      else list = opts[refKey].map(o => ({ value: o.id, label: ref.label(o) }));
+    } else if (f.options) {
+      list = f.options.map(o => ({ value: o, label: o }));
+    } else {
+      list = (opts[f.optionsFrom] || []).map(o => ({
+        value: o.id,
+        label: typeof f.optionLabel === 'function' ? f.optionLabel(o) : o[f.optionLabel || 'name'],
+      }));
+    }
+
     return (
-      <select value={value ?? ''} onChange={e => onChange(e.target.value)} required={f.required}>
-        <option value="">-- pilih --</option>
+      <select
+        value={value ?? ''}
+        onChange={e => onChange(e.target.value)}
+        required={f.required}
+        disabled={!!f.refBy && !ref}
+      >
+        <option value="">{placeholder}</option>
         {list.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
       </select>
     );
   }
+
   if (f.type === 'textarea') {
     return <textarea rows={2} value={value ?? ''} onChange={e => onChange(e.target.value)} />;
   }
+
   return (
     <input
       type={f.type || 'text'}
@@ -86,7 +109,7 @@ export default function FormModal({ r, row, onClose, onSaved }) {
   const [err, setErr] = useState('');
   const fillReq = useRef(0);
 
-  // Ambil data pilihan (dropdown) dari endpoint resource terkait
+  // Ambil data pilihan statis dan permission sekali saat modal dibuka
   useEffect(() => {
     // Permission: list role tidak memuat permission, jadi ambil detail tiap role
     const loadPermissions = async f => {
@@ -129,6 +152,26 @@ export default function FormModal({ r, row, onClose, onSaved }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Pilihan bergantung (refBy) diambil ulang setiap kali jenis di field induk berubah
+  const parentTypes = flatten(fields)
+    .filter(f => f.refBy)
+    .map(f => v[f.dependsOn] || '')
+    .join('|');
+
+  useEffect(() => {
+    flatten(fields).forEach(f => {
+      if (!f.refBy) return;
+      const type = v[f.dependsOn];
+      const ref = type && f.refBy[type];
+      if (!ref) return;
+      const key = `ref:${type}`;
+      api.get(resources[ref.resource].path, { params: { per_page: 100 } })
+        .then(({ data }) => setOpts(o => ({ ...o, [key]: data.data || [] })))
+        .catch(() => setOpts(o => ({ ...o, [key]: [] })));
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [parentTypes]);
+
   // Isi baris (lines) otomatis dari detail data yang dipilih
   const fillLines = async (f, val) => {
     const { path, target, map } = f.onSelect;
@@ -148,7 +191,12 @@ export default function FormModal({ r, row, onClose, onSaved }) {
   };
 
   const setField = (name, val) => {
-    setV(s => ({ ...s, [name]: val }));
+    setV(s => {
+      const next = { ...s, [name]: val };
+      // Kosongkan field yang bergantung pada field ini, misalnya referensi saat jenis berubah
+      flatten(fields).forEach(f => { if (f.dependsOn === name) next[f.name] = ''; });
+      return next;
+    });
     const f = fields.find(x => x.name === name);
     if (f?.onSelect && val !== '') fillLines(f, val);
   };
@@ -185,7 +233,13 @@ export default function FormModal({ r, row, onClose, onSaved }) {
                 {f.label}{f.required && ' *'}
                 {filling === f.name && <Spinner size={12} />}
               </span>
-              <FieldInput f={f} value={v[f.name]} opts={opts} onChange={val => setField(f.name, val)} />
+              <FieldInput
+                f={f}
+                value={v[f.name]}
+                parentValue={f.dependsOn ? v[f.dependsOn] : undefined}
+                opts={opts}
+                onChange={val => setField(f.name, val)}
+              />
             </label>
           ))}
         </div>
