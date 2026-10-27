@@ -880,3 +880,48 @@ label {
 .act-del:hover {
     background: #fee2e2;
 }
+
+/* ===== Kontrol ubah status ===== */
+.status-control {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.status-select.compact {
+    padding: 5px 8px;
+    font-size: 13px;
+}
+
+.status-select[data-status="confirmed"] {
+    background: #eff6ff;
+    color: #1d4ed8;
+    border-color: #bfdbfe;
+    font-weight: 600;
+}
+
+.status-select[data-status="delivered"],
+.status-select[data-status="received"],
+.status-select[data-status="paid"] {
+    background: #ecfdf5;
+    color: #047857;
+    border-color: #a7f3d0;
+    font-weight: 600;
+}
+
+.status-select[data-status="draft"] {
+    background: #f8fafc;
+    color: #475569;
+    border-color: #cbd5e1;
+}
+
+.status-select:disabled {
+    opacity: .6;
+    cursor: wait;
+}
+
+.field-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}

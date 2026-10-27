@@ -7,8 +7,11 @@
 //  - lines : daftar baris item (dengan fields di dalamnya), untuk PO, SO, GR, jurnal
 //  - only  : 'create' | 'edit' -> field hanya tampil saat tambah/edit
 
-const PO_STATUS = ['draft', 'confirmed', 'received'];
-const SO_STATUS = ['draft', 'confirmed', 'delivered'];
+// const PO_STATUS = ['draft', 'confirmed', 'received'];
+// const SO_STATUS = ['draft', 'confirmed', 'delivered'];
+
+const PO_STATUS = ['confirmed'];
+const SO_STATUS = ['confirmed', 'delivered'];
 
 export const resources = {
   users: {
@@ -102,7 +105,19 @@ export const resources = {
   'goods-receipts': {
     title: 'Goods Receipt', path: '/api/v1/goods-receipts', detail: true, create: true,
     fields: [
-      { name: 'po_id', label: 'Purchase Order', type: 'select', optionsFrom: 'purchase-orders', optionLabel: 'po_number', required: true },
+      {
+        name: 'po_id', label: 'Purchase Order', type: 'select', optionsFrom: 'purchase-orders', optionLabel: 'po_number', required: true,
+        // Saat PO dipilih, ambil detailnya dan isi otomatis baris "items"
+        onSelect: {
+          path: '/api/v1/purchase-orders',
+          target: 'items',
+          map: po => (po.items || []).map(it => ({
+            po_item_id: it.id,
+            product_id: it.product_id,
+            quantity_received: it.quantity,
+          })),
+        },
+      },
       { name: 'receipt_date', label: 'Tanggal terima', type: 'date', required: true },
       { name: 'notes', label: 'Catatan', type: 'textarea' },
       {

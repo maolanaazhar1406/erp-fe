@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
+import { Eye, Pencil, Trash2 } from 'lucide-react';
 import { api, errMsg } from '../api/client';
 import { resources } from '../config/resources';
 import { fmt, label } from '../components/DataView';
 import DetailView, { colorFor } from '../components/DetailView';
 import FormModal from '../components/FormModal';
+import StatusControl from '../components/StatusControl';
 import { SkeletonLines, SkeletonTable, Spinner, useDelayed } from '../components/Loading';
-import { Eye, Pencil, Trash2 } from 'lucide-react';
 
 export default function ResourcePage() {
   const { key, id } = useParams();
@@ -30,6 +31,7 @@ function List({ k, r }) {
   const [err, setErr] = useState('');
 
   const busy = useDelayed(loading, 200);
+  const hasStatus = Boolean(r.statuses);
 
   useEffect(() => {
     if (r.list === false) return;
@@ -65,7 +67,11 @@ function List({ k, r }) {
   };
 
   const first = rows[0] || {};
-  const cols = Object.keys(first).filter(c => first[c] === null || typeof first[c] !== 'object').slice(0, 8);
+  // Kolom status disembunyikan jika sudah ada kontrol ubah status
+  const cols = Object.keys(first)
+    .filter(c => first[c] === null || typeof first[c] !== 'object')
+    .filter(c => !(hasStatus && c === 'status'))
+    .slice(0, 8);
   const totalPages = meta ? Math.max(1, Math.ceil(meta.total / meta.per_page)) : 1;
 
   let content;
@@ -76,18 +82,35 @@ function List({ k, r }) {
   } else if (rows.length === 0 && loaded) {
     content = <p className="muted">Tidak ada data.</p>;
   } else if (rows.length === 0) {
-    content = null; // menunggu, belum 200ms
+    content = null;
   } else {
     content = (
       <div className={`table-wrap${busy ? ' dimmed' : ''}`}>
         <table>
           <thead>
-            <tr>{cols.map(c => <th key={c}>{label(c)}</th>)}<th>Aksi</th></tr>
+            <tr>
+              {cols.map(c => <th key={c}>{label(c)}</th>)}
+              {hasStatus && <th>Ubah status</th>}
+              <th>Aksi</th>
+            </tr>
           </thead>
           <tbody>
             {rows.map(row => (
               <tr key={row.id}>
                 {cols.map(c => <td key={c}>{fmt(row[c])}</td>)}
+                {hasStatus && (
+                  <td>
+                    <StatusControl
+                      basePath={r.path}
+                      id={row.id}
+                      current={row.status}
+                      options={r.statuses}
+                      title={row.po_number || row.so_number || `#${row.id}`}
+                      compact
+                      onChanged={() => setRefresh(x => x + 1)}
+                    />
+                  </td>
+                )}
                 <td>
                   <div className="actions">
                     {r.detail && (
@@ -155,7 +178,6 @@ function Detail({ k, r, id }) {
   const [loading, setLoading] = useState(true);
   const [edit, setEdit] = useState(false);
   const [refresh, setRefresh] = useState(0);
-  const [saving, setSaving] = useState(false);
   const [err, setErr] = useState('');
 
   const busy = useDelayed(loading, 200);
@@ -172,35 +194,22 @@ function Detail({ k, r, id }) {
     return () => { cancelled = true; };
   }, [r.path, id, refresh]);
 
-  const changeStatus = async status => {
-    setSaving(true);
-    try {
-      await api.patch(`${r.path}/${id}/status`, { status });
-      setRefresh(x => x + 1);
-    } catch (e) {
-      alert(errMsg(e));
-    } finally {
-      setSaving(false);
-    }
-  };
-
   return (
     <>
       <div className="topbar">
         <Link to={`/r/${k}`} className="back-link">← Kembali ke {r.title}</Link>
         <div className="row">
           {r.statuses && data && (
-            <select
-              value={data.status}
-              disabled={saving}
-              onChange={e => changeStatus(e.target.value)}
-              className="status-select"
-            >
-              {r.statuses.map(s => <option key={s} value={s}>{s}</option>)}
-            </select>
+            <StatusControl
+              basePath={r.path}
+              id={id}
+              current={data.status}
+              options={r.statuses}
+              title={data.po_number || data.so_number || `#${id}`}
+              onChanged={() => setRefresh(x => x + 1)}
+            />
           )}
-          {saving && <Spinner size={14} />}
-          {r.update && data && <button disabled={saving} onClick={() => setEdit(true)}>Edit</button>}
+          {r.update && data && <button onClick={() => setEdit(true)}>Edit</button>}
         </div>
       </div>
 

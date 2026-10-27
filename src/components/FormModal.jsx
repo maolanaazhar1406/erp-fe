@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { api, errMsg } from '../api/client';
 import { resources } from '../config/resources';
 import { Spinner } from './Loading';
@@ -78,7 +78,9 @@ export default function FormModal({ r, row, onClose, onSaved }) {
   const [v, setV] = useState(() => initialValues(fields, row));
   const [opts, setOpts] = useState({});
   const [saving, setSaving] = useState(false);
+  const [filling, setFilling] = useState(''); // nama field yang sedang mengisi data otomatis
   const [err, setErr] = useState('');
+  const fillReq = useRef(0); // mencegah respons lama menimpa pilihan baru
 
   // Ambil data pilihan (dropdown) dari endpoint resource terkait
   useEffect(() => {
@@ -101,7 +103,30 @@ export default function FormModal({ r, row, onClose, onSaved }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const setField = (name, val) => setV(s => ({ ...s, [name]: val }));
+  // Isi baris (lines) otomatis dari detail data yang dipilih
+  const fillLines = async (f, val) => {
+    const { path, target, map } = f.onSelect;
+    const reqId = ++fillReq.current;
+    setFilling(f.name);
+    try {
+      const { data } = await api.get(`${path}/${val}`);
+      if (reqId !== fillReq.current) return;
+      const lines = map(data.data || {});
+      const targetField = fields.find(x => x.name === target);
+      setV(s => ({ ...s, [target]: lines.length ? lines : [emptyLine(targetField)] }));
+    } catch (e) {
+      if (reqId === fillReq.current) setErr(errMsg(e));
+    } finally {
+      if (reqId === fillReq.current) setFilling('');
+    }
+  };
+
+  const setField = (name, val) => {
+    setV(s => ({ ...s, [name]: val }));
+    const f = fields.find(x => x.name === name);
+    if (f?.onSelect && val !== '') fillLines(f, val);
+  };
+
   const setLine = (name, i, sub, val) =>
     setV(s => ({ ...s, [name]: s[name].map((ln, idx) => (idx === i ? { ...ln, [sub]: val } : ln)) }));
   const addLine = f => setV(s => ({ ...s, [f.name]: [...s[f.name], emptyLine(f)] }));
@@ -130,7 +155,10 @@ export default function FormModal({ r, row, onClose, onSaved }) {
         <div className="grid">
           {fields.filter(f => f.type !== 'lines').map(f => (
             <label key={f.name} style={f.type === 'permissions' ? { gridColumn: '1 / -1' } : undefined}>
-              {f.label}{f.required && ' *'}
+              <span className="field-label">
+                {f.label}{f.required && ' *'}
+                {filling === f.name && <Spinner size={12} />}
+              </span>
               <FieldInput f={f} value={v[f.name]} opts={opts} onChange={val => setField(f.name, val)} />
             </label>
           ))}
