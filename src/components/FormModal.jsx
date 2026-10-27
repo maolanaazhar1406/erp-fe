@@ -35,15 +35,19 @@ function FieldInput({ f, value, onChange, opts }) {
   if (f.type === 'permissions') {
     const list = opts.permissions || [];
     const toggle = id => onChange(value.includes(id) ? value.filter(x => x !== id) : [...value, id]);
+
+    if (opts.permError) return <span className="error">{opts.permError}</span>;
+    if (!opts.permLoaded) return <span className="muted">Memuat permission...</span>;
+    if (!list.length) return <span className="muted">Belum ada permission.</span>;
+
     return (
-      <div className="row">
+      <div className="perm-grid">
         {list.map(p => (
-          <label key={p.id} style={{ flexDirection: 'row', alignItems: 'center' }}>
-            <input type="checkbox" style={{ width: 'auto' }} checked={value.includes(p.id)} onChange={() => toggle(p.id)} />
-            {p.name}
+          <label key={p.id} className="perm-item">
+            <input type="checkbox" checked={value.includes(p.id)} onChange={() => toggle(p.id)} />
+            <span>{p.name}</span>
           </label>
         ))}
-        {!list.length && <span className="muted">Memuat permission...</span>}
       </div>
     );
   }
@@ -78,27 +82,49 @@ export default function FormModal({ r, row, onClose, onSaved }) {
   const [v, setV] = useState(() => initialValues(fields, row));
   const [opts, setOpts] = useState({});
   const [saving, setSaving] = useState(false);
-  const [filling, setFilling] = useState(''); // nama field yang sedang mengisi data otomatis
+  const [filling, setFilling] = useState('');
   const [err, setErr] = useState('');
-  const fillReq = useRef(0); // mencegah respons lama menimpa pilihan baru
+  const fillReq = useRef(0);
 
   // Ambil data pilihan (dropdown) dari endpoint resource terkait
   useEffect(() => {
+    // Permission: list role tidak memuat permission, jadi ambil detail tiap role
+    const loadPermissions = async f => {
+      try {
+        const { data } = await api.get(resources.roles.path, { params: { per_page: 100 } });
+        const roles = data.data || [];
+        const details = await Promise.all(
+          roles.map(role =>
+            api.get(`${resources.roles.path}/${role.id}`)
+              .then(res => res.data.data)
+              .catch(() => null)
+          )
+        );
+
+        const map = new Map();
+        details.forEach(d => d?.permissions?.forEach(p => map.set(p.id, p)));
+        const all = [...map.values()].sort((a, b) => a.id - b.id);
+        setOpts(o => ({ ...o, permissions: all, permLoaded: true, permError: '' }));
+
+        // Saat edit, centang permission milik role yang sedang dibuka
+        if (isEdit) {
+          const current = details.find(d => d?.id === row.id);
+          if (current?.permissions) {
+            setV(s => ({ ...s, [f.name]: current.permissions.map(p => p.id) }));
+          }
+        }
+      } catch (e) {
+        setOpts(o => ({ ...o, permLoaded: true, permError: errMsg(e) }));
+      }
+    };
+
     flatten(fields).forEach(f => {
       if (f.optionsFrom) {
         api.get(resources[f.optionsFrom].path, { params: { per_page: 100 } })
           .then(({ data }) => setOpts(o => ({ ...o, [f.optionsFrom]: data.data || [] })))
           .catch(() => { });
       }
-      if (f.type === 'permissions') {
-        api.get(resources.roles.path)
-          .then(({ data }) => {
-            const map = new Map();
-            (data.data || []).forEach(role => role.permissions?.forEach(p => map.set(p.id, p)));
-            setOpts(o => ({ ...o, permissions: [...map.values()] }));
-          })
-          .catch(() => { });
-      }
+      if (f.type === 'permissions') loadPermissions(f);
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

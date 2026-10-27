@@ -940,3 +940,26 @@ label {
 .forbidden h2 {
     color: #1f2937;
 }
+
+.perm-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 6px 12px;
+    max-height: 240px;
+    overflow-y: auto;
+    padding: 8px;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+}
+
+.perm-item {
+    flex-direction: row;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    font-family: ui-monospace, monospace;
+}
+
+.perm-item input {
+    width: auto;
+}
