@@ -8,6 +8,8 @@ import { api, errMsg } from '../api/client';
 import { reports } from '../config/resources';
 import DataView, { fmt, label } from '../components/DataView';
 import { SkeletonTable, Spinner, useDelayed } from '../components/Loading';
+import { useAuth } from '../context/AuthContext';
+import Forbidden from '../components/Forbidden';
 
 const META = {
   sales: { icon: TrendingUp, color: '#2563eb', desc: 'Ringkasan order penjualan dan pendapatan' },
@@ -26,6 +28,8 @@ const isObj = v => v !== null && typeof v === 'object' && !Array.isArray(v);
 
 export default function ReportPage() {
   const { slug } = useParams();
+  const { can } = useAuth();
+  if (!can('reports:read')) return <Forbidden />;
   const report = reports.find(x => x.slug === slug);
   return report ? <Detail key={slug} report={report} /> : <Index />;
 }

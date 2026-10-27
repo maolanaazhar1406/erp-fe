@@ -2,17 +2,21 @@ import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { Eye, Pencil, Trash2 } from 'lucide-react';
 import { api, errMsg } from '../api/client';
-import { resources } from '../config/resources';
+import { resources, permFor } from '../config/resources';
+import { useAuth } from '../context/AuthContext';
 import { fmt, label } from '../components/DataView';
 import DetailView, { colorFor } from '../components/DetailView';
 import FormModal from '../components/FormModal';
 import StatusControl from '../components/StatusControl';
+import Forbidden from '../components/Forbidden';
 import { SkeletonLines, SkeletonTable, Spinner, useDelayed } from '../components/Loading';
 
 export default function ResourcePage() {
   const { key, id } = useParams();
+  const { can } = useAuth();
   const r = resources[key];
   if (!r) return <p>Resource tidak ditemukan.</p>;
+  if (!can(permFor(key, 'read'))) return <Forbidden />;
   // key di sini memastikan state di-reset saat pindah modul
   return id
     ? <Detail key={`${key}-${id}`} k={key} r={r} id={id} />
@@ -20,6 +24,7 @@ export default function ResourcePage() {
 }
 
 function List({ k, r }) {
+  const { can } = useAuth();
   const [rows, setRows] = useState([]);
   const [meta, setMeta] = useState(null);
   const [page, setPage] = useState(1);
@@ -32,6 +37,10 @@ function List({ k, r }) {
 
   const busy = useDelayed(loading, 200);
   const hasStatus = Boolean(r.statuses);
+  const canCreate = Boolean(r.create) && can(permFor(k, 'create'));
+  const canUpdate = Boolean(r.update) && can(permFor(k, 'update'));
+  const canRemove = Boolean(r.remove) && can(permFor(k, 'delete'));
+  const canStatus = hasStatus && can(permFor(k, 'update'));
 
   useEffect(() => {
     if (r.list === false) return;
@@ -67,7 +76,7 @@ function List({ k, r }) {
   };
 
   const first = rows[0] || {};
-  // Kolom status disembunyikan jika sudah ada kontrol ubah status
+  // Kolom status disembunyikan karena sudah ditampilkan di kolom sendiri
   const cols = Object.keys(first)
     .filter(c => first[c] === null || typeof first[c] !== 'object')
     .filter(c => !(hasStatus && c === 'status'))
@@ -76,7 +85,7 @@ function List({ k, r }) {
 
   let content;
   if (r.list === false) {
-    content = <p className="muted">Klik "Tambah" untuk membuat data baru.</p>;
+    content = <p className="muted">{canCreate ? 'Klik "Tambah" untuk membuat data baru.' : 'Tidak ada data untuk ditampilkan.'}</p>;
   } else if (rows.length === 0 && busy) {
     content = <SkeletonTable rows={6} cols={5} />;
   } else if (rows.length === 0 && loaded) {
@@ -90,7 +99,7 @@ function List({ k, r }) {
           <thead>
             <tr>
               {cols.map(c => <th key={c}>{label(c)}</th>)}
-              {hasStatus && <th>Ubah status</th>}
+              {hasStatus && <th>{canStatus ? 'Ubah status' : 'Status'}</th>}
               <th>Aksi</th>
             </tr>
           </thead>
@@ -100,15 +109,19 @@ function List({ k, r }) {
                 {cols.map(c => <td key={c}>{fmt(row[c])}</td>)}
                 {hasStatus && (
                   <td>
-                    <StatusControl
-                      basePath={r.path}
-                      id={row.id}
-                      current={row.status}
-                      options={r.statuses}
-                      title={row.po_number || row.so_number || `#${row.id}`}
-                      compact
-                      onChanged={() => setRefresh(x => x + 1)}
-                    />
+                    {canStatus ? (
+                      <StatusControl
+                        basePath={r.path}
+                        id={row.id}
+                        current={row.status}
+                        options={r.statuses}
+                        title={row.po_number || row.so_number || `#${row.id}`}
+                        compact
+                        onChanged={() => setRefresh(x => x + 1)}
+                      />
+                    ) : (
+                      <span className="muted">{row.status}</span>
+                    )}
                   </td>
                 )}
                 <td>
@@ -118,12 +131,12 @@ function List({ k, r }) {
                         <Eye size={15} /> Detail
                       </Link>
                     )}
-                    {r.update && (
+                    {canUpdate && (
                       <button className="act act-edit" title="Edit data" onClick={() => setModal({ row })}>
                         <Pencil size={15} /> Edit
                       </button>
                     )}
-                    {r.remove && (
+                    {canRemove && (
                       <button
                         className="act act-del"
                         title="Hapus data"
@@ -147,7 +160,7 @@ function List({ k, r }) {
     <>
       <div className="topbar">
         <h2>{r.title}</h2>
-        {r.create && <button onClick={() => setModal({})}>+ Tambah</button>}
+        {canCreate && <button onClick={() => setModal({})}>+ Tambah</button>}
       </div>
       <div className="card">
         {err && <p className="error">{err}</p>}
@@ -174,6 +187,7 @@ function List({ k, r }) {
 }
 
 function Detail({ k, r, id }) {
+  const { can } = useAuth();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [edit, setEdit] = useState(false);
@@ -182,6 +196,7 @@ function Detail({ k, r, id }) {
 
   const busy = useDelayed(loading, 200);
   const color = colorFor(k);
+  const canUpdate = Boolean(r.update) && can(permFor(k, 'update'));
 
   useEffect(() => {
     let cancelled = false;
@@ -200,16 +215,20 @@ function Detail({ k, r, id }) {
         <Link to={`/r/${k}`} className="back-link">← Kembali ke {r.title}</Link>
         <div className="row">
           {r.statuses && data && (
-            <StatusControl
-              basePath={r.path}
-              id={id}
-              current={data.status}
-              options={r.statuses}
-              title={data.po_number || data.so_number || `#${id}`}
-              onChanged={() => setRefresh(x => x + 1)}
-            />
+            canUpdate ? (
+              <StatusControl
+                basePath={r.path}
+                id={id}
+                current={data.status}
+                options={r.statuses}
+                title={data.po_number || data.so_number || `#${id}`}
+                onChanged={() => setRefresh(x => x + 1)}
+              />
+            ) : (
+              <span className="muted">Status: {data.status}</span>
+            )
           )}
-          {r.update && data && <button onClick={() => setEdit(true)}>Edit</button>}
+          {canUpdate && data && <button onClick={() => setEdit(true)}>Edit</button>}
         </div>
       </div>
 

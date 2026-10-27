@@ -209,3 +209,28 @@ export const menu = [
   { group: 'Penjualan', items: ['sales-orders'] },
   { group: 'Keuangan', items: ['accounts', 'journal-entries', 'payments', 'accounts-payable', 'accounts-receivable'] },
 ];
+
+// Pemetaan modul ke prefix permission backend (lihat router.go).
+// Aksi dibentuk otomatis: `${PERM[key]}:read|create|update|delete`.
+export const PERM = {
+  users: 'users',
+  roles: 'roles',
+  products: 'products',
+  'product-categories': 'products',
+  units: 'products',
+  customers: 'customers',
+  suppliers: 'suppliers',
+  'purchase-orders': 'purchases',
+  'goods-receipts': 'purchases',
+  inventory: 'inventory',
+  'stock-movements': 'inventory',
+  'stock-adjustments': 'inventory',
+  'sales-orders': 'sales',
+  accounts: 'finance',
+  'journal-entries': 'finance',
+  payments: 'finance',
+  'accounts-payable': 'finance',
+  'accounts-receivable': 'finance',
+};
+
+export const permFor = (key, action) => `${PERM[key]}:${action}`;

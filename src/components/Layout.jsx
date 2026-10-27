@@ -8,7 +8,7 @@ import {
   BookOpen, FileText, CreditCard, Receipt, Wallet,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { resources, menu } from '../config/resources';
+import { resources, menu, permFor } from '../config/resources';
 
 const GROUP_ICONS = {
   'Pengguna': Users,
@@ -43,7 +43,7 @@ const ITEM_ICONS = {
 const SIDEBAR_KEY = 'erp_sidebar_collapsed';
 
 export default function Layout() {
-  const { user, logout } = useAuth();
+  const { user, logout, can } = useAuth();
   const nav = useNavigate();
 
   const [collapsed, setCollapsed] = useState(() => localStorage.getItem(SIDEBAR_KEY) === '1');
@@ -60,6 +60,12 @@ export default function Layout() {
     logout();
     nav('/login');
   };
+
+  // Sembunyikan modul yang tidak punya izin read, lalu grup yang jadi kosong
+  const visibleMenu = menu
+    .map(g => ({ ...g, items: g.items.filter(k => can(permFor(k, 'read'))) }))
+    .filter(g => g.items.length > 0);
+  const canReports = can('reports:read');
 
   return (
     <div className={`layout${collapsed ? ' collapsed' : ''}`}>
@@ -80,7 +86,7 @@ export default function Layout() {
           {!collapsed && <span>Dashboard</span>}
         </NavLink>
 
-        {menu.map(g => {
+        {visibleMenu.map(g => {
           const GroupIcon = GROUP_ICONS[g.group] || Database;
           const open = isOpen(g.group);
           const show = open || collapsed;
@@ -121,12 +127,14 @@ export default function Layout() {
           );
         })}
 
-        <div className="nav-group">
-          <NavLink to="/reports" className="nav-item" title="Laporan">
-            <BarChart3 size={18} />
-            {!collapsed && <span>Laporan</span>}
-          </NavLink>
-        </div>
+        {canReports && (
+          <div className="nav-group">
+            <NavLink to="/reports" className="nav-item" title="Laporan">
+              <BarChart3 size={18} />
+              {!collapsed && <span>Laporan</span>}
+            </NavLink>
+          </div>
+        )}
 
         <button className="nav-item logout" onClick={onLogout} title="Logout">
           <LogOut size={18} />

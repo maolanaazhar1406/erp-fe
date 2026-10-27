@@ -29,4 +29,7 @@ api.interceptors.response.use(
   }
 );
 
-export const errMsg = e => e.response?.data?.message || e.response?.data?.error || e.message;
+export const errMsg = e => {
+  if (e.response?.status === 403) return 'Anda tidak punya izin untuk aksi ini.';
+  return e.response?.data?.message || e.response?.data?.error || e.message;
+};
