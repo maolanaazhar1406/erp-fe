@@ -161,8 +161,8 @@ function List({ k, r }) {
           <thead>
             <tr>
               {columns.map(c => <th key={c.key}>{c.label}</th>)}
-              {hasStatus && <th>{canStatus ? 'Ubah status' : 'Status'}</th>}
-              <th>Aksi</th>
+              {hasStatus && <th className="col-fit">{canStatus ? 'Ubah status' : 'Status'}</th>}
+              <th className="col-actions">Aksi</th>
             </tr>
           </thead>
           <tbody>
@@ -170,7 +170,7 @@ function List({ k, r }) {
               <tr key={row.id}>
                 {columns.map(c => <td key={c.key}>{fmt(row[c.key])}</td>)}
                 {hasStatus && (
-                  <td>
+                  <td className="col-fit">
                     {canStatus ? (
                       <StatusControl
                         basePath={r.path}
@@ -186,7 +186,7 @@ function List({ k, r }) {
                     )}
                   </td>
                 )}
-                <td>
+                <td className="col-actions">
                   <div className="actions">
                     {r.detail && (
                       <Link to={`/r/${k}/${row.id}`} className="act act-view" title="Lihat detail">

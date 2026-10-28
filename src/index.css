@@ -2518,3 +2518,65 @@ label.switch {
     color: #dc2626;
     font-weight: 600;
 }
+
+/* ===== Kolom aksi dan status di tabel ===== */
+.col-actions {
+    width: 1%;
+    white-space: nowrap;
+    text-align: right;
+    position: sticky;
+    right: 0;
+    background: var(--surface);
+    z-index: 1;
+}
+
+th.col-actions {
+    background: var(--surface-2);
+}
+
+.col-actions::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: -10px;
+    width: 10px;
+    pointer-events: none;
+    background: linear-gradient(90deg, transparent, rgba(0, 0, 0, .06));
+}
+
+.col-fit {
+    width: 1%;
+    white-space: nowrap;
+}
+
+.actions {
+    display: inline-flex;
+    gap: 6px;
+    justify-content: flex-end;
+    align-items: center;
+}
+
+.act {
+    height: 34px;
+    padding: 0 12px;
+    font-size: 13px;
+    line-height: 1;
+    border-radius: 8px;
+}
+
+.act svg {
+    flex-shrink: 0;
+}
+
+table tbody tr {
+    transition: background .15s ease;
+}
+
+table tbody tr:hover td {
+    background: color-mix(in srgb, var(--accent) 5%, var(--surface));
+}
+
+table tbody tr:hover td.col-actions {
+    background: color-mix(in srgb, var(--accent) 5%, var(--surface));
+}
