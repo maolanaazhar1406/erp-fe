@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react';
-import { NavLink, Outlet } from 'react-router-dom';
+import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard, ChevronDown, ChevronLeft, ChevronRight, BarChart3, Layers,
   Users, Database, ShoppingBag, Warehouse, ShoppingCart, Landmark,
   UserRound, ShieldCheck, Package, Tags, Ruler, Handshake, Truck,
   ClipboardList, PackageCheck, ArrowLeftRight, SlidersHorizontal,
-  BookOpen, FileText, CreditCard, Receipt, Wallet,
+  BookOpen, FileText, CreditCard, Receipt, Wallet, ScrollText,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { resources, menu, permFor } from '../config/resources';
@@ -43,17 +43,40 @@ const ITEM_ICONS = {
 };
 
 const SIDEBAR_KEY = 'erp_sidebar_collapsed';
+const GROUPS_KEY = 'erp_sidebar_groups';
 
 export default function Layout() {
   const { user, can } = useAuth();
+  const { pathname } = useLocation();
   const [collapsed, setCollapsed] = useState(() => localStorage.getItem(SIDEBAR_KEY) === '1');
-  const [openGroups, setOpenGroups] = useState({});
+  const [openGroups, setOpenGroups] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem(GROUPS_KEY)) || {};
+    } catch {
+      return {};
+    }
+  });
+
+  // Grup yang memuat halaman aktif
+  const activeGroup = menu.find(g => g.items.some(k => pathname.startsWith(`/r/${k}`)))?.group;
 
   useEffect(() => {
     localStorage.setItem(SIDEBAR_KEY, collapsed ? '1' : '0');
   }, [collapsed]);
 
-  const isOpen = group => openGroups[group] ?? true;
+  useEffect(() => {
+    localStorage.setItem(GROUPS_KEY, JSON.stringify(openGroups));
+  }, [openGroups]);
+
+  // Saat berpindah ke halaman di grup yang tertutup (misalnya lewat Ctrl+K), buka grup tersebut
+  useEffect(() => {
+    if (activeGroup) {
+      setOpenGroups(o => (o[activeGroup] ? o : { ...o, [activeGroup]: true }));
+    }
+  }, [activeGroup]);
+
+  // Grup yang belum pernah diatur: tertutup, kecuali grup halaman aktif
+  const isOpen = group => openGroups[group] ?? group === activeGroup;
   const toggleGroup = group => setOpenGroups(o => ({ ...o, [group]: !isOpen(group) }));
 
   // Sembunyikan modul yang tidak punya izin read, lalu grup yang jadi kosong
@@ -132,6 +155,14 @@ export default function Layout() {
               <NavLink to="/reports" className="nav-item" title="Laporan">
                 <BarChart3 size={18} />
                 {!collapsed && <span>Laporan</span>}
+              </NavLink>
+            </div>
+          )}
+          {can('audit:read') && (
+            <div className="nav-group">
+              <NavLink to="/audit" className="nav-item" title="Audit log">
+                <ScrollText size={18} />
+                {!collapsed && <span>Audit log</span>}
               </NavLink>
             </div>
           )}

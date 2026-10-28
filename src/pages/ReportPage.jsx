@@ -10,6 +10,8 @@ import DataView, { fmt, label } from '../components/DataView';
 import { SkeletonTable, Spinner, useDelayed } from '../components/Loading';
 import { useAuth } from '../context/AuthContext';
 import Forbidden from '../components/Forbidden';
+import ExportMenu from '../components/ExportMenu';
+import { exportCSV, exportXLSX } from '../utils/export';
 
 const META = {
   sales: { icon: TrendingUp, color: '#2563eb', desc: 'Ringkasan order penjualan dan pendapatan' },
@@ -98,6 +100,30 @@ function Detail({ report }) {
   const rest = isObj(data)
     ? Object.fromEntries(Object.entries(data).filter(([k]) => k !== 'summary'))
     : data;
+  // Setiap tabel di laporan menjadi satu sheet Excel. CSV hanya memuat tabel utama.
+  const exportReport = async fmt => {
+    const sheets = [];
+    if (isObj(data?.summary)) {
+      sheets.push({
+        name: 'Ringkasan',
+        rows: [data.summary],
+        columns: Object.keys(data.summary).map(k => ({ key: k, label: label(k) })),
+      });
+    }
+    Object.entries(data || {}).forEach(([k, v]) => {
+      if (k !== 'summary' && Array.isArray(v) && v.length && isObj(v[0])) {
+        const columns = Object.keys(v[0])
+          .filter(c => !isObj(v[0][c]))
+          .map(c => ({ key: c, label: label(c) }));
+        sheets.push({ name: label(k), rows: v, columns });
+      }
+    });
+    if (!sheets.length) throw new Error('Tidak ada data untuk diekspor');
+
+    if (fmt === 'xlsx') return exportXLSX(sheets, report.slug);
+    const main = sheets.find(s => s.name !== 'Ringkasan') || sheets[0];
+    return exportCSV(main.rows, main.columns, report.slug);
+  };
 
   return (
     <>
@@ -117,6 +143,7 @@ function Detail({ report }) {
         <input type="date" value={start} onChange={e => setStart(e.target.value)} />
         <span className="muted">s/d</span>
         <input type="date" value={end} onChange={e => setEnd(e.target.value)} />
+        <ExportMenu onExport={exportReport} disabled={!data} />
         {busy && <Spinner size={16} />}
       </div>
 

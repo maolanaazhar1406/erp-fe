@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { Eye, Pencil, Trash2, Search, X, Inbox } from 'lucide-react';
+import { Eye, Pencil, Trash2, Search, X, Inbox, Printer } from 'lucide-react';
 import { api, errMsg } from '../api/client';
 import { resources, permFor } from '../config/resources';
 import { useAuth } from '../context/AuthContext';
@@ -10,10 +10,14 @@ import DetailView, { colorFor } from '../components/DetailView';
 import FormModal from '../components/FormModal';
 import StatusControl from '../components/StatusControl';
 import Forbidden from '../components/Forbidden';
+import ExportMenu from '../components/ExportMenu';
+import { fetchAll, exportCSV, exportXLSX } from '../utils/export';
 import { SkeletonLines, SkeletonTable, Spinner, useDelayed } from '../components/Loading';
 
 // Kolom yang tidak ditampilkan di list: ID, foreign key, dan id pembuat
 const HIDDEN_AUTO = /^id$|_id$|_by$/;
+
+const PRINTABLE = ['purchase-orders', 'sales-orders', 'payments'];
 
 function autoColumns(row, hasStatus) {
   return Object.keys(row)
@@ -117,6 +121,15 @@ function List({ k, r }) {
     }
   };
 
+  // Ekspor mengambil semua data sesuai kata kunci pencarian, bukan hanya halaman ini
+  const exportList = async fmt => {
+    const all = await fetchAll(r.path, { q: qd || undefined });
+    if (!all.length) throw new Error('Tidak ada data untuk diekspor');
+    const cols = r.listColumns || autoColumns(all[0], hasStatus);
+    if (fmt === 'csv') exportCSV(all, cols, r.title);
+    else await exportXLSX([{ name: r.title, rows: all, columns: cols }], r.title);
+  };
+
   const columns = r.listColumns || autoColumns(rows[0] || {}, hasStatus);
   const totalPages = meta ? Math.max(1, Math.ceil(meta.total / meta.per_page)) : 1;
 
@@ -180,6 +193,11 @@ function List({ k, r }) {
                         <Eye size={15} /> Detail
                       </Link>
                     )}
+                    {PRINTABLE.includes(k) && (
+                      <button className="act act-print" onClick={() => window.open(`/print/${k}/${row.id}`, '_blank')}>
+                        <Printer size={15} /> PDF
+                      </button>
+                    )}
                     {canUpdate && (
                       <button className="act act-edit" title="Edit data" onClick={() => setModal({ row })}>
                         <Pencil size={15} /> Edit
@@ -229,6 +247,7 @@ function List({ k, r }) {
                 </button>
               )}
             </div>
+            <ExportMenu onExport={exportList} disabled={!meta || rows.length === 0} />
             {qd && meta && (
               <span className="muted">{meta.total} hasil untuk "{qd}"</span>
             )}
@@ -307,6 +326,11 @@ function Detail({ k, r, id }) {
             ) : (
               <span className="muted">Status: {data.status}</span>
             )
+          )}
+          {PRINTABLE.includes(k) && data && (
+            <button className="ghost" onClick={() => window.open(`/print/${k}/${id}`, '_blank')}>
+              <Printer size={15} /> Cetak PDF
+            </button>
           )}
           {canUpdate && data && <button onClick={() => setEdit(true)}>Edit</button>}
         </div>
