@@ -208,9 +208,17 @@ export default function FormModal({ r, row, onClose, onSaved }) {
 
   const submit = async e => {
     e.preventDefault();
-    setSaving(true);
     setErr('');
     const payload = Object.fromEntries(fields.map(f => [f.name, toPayload(f, v[f.name])]));
+
+    // Validasi khusus resource, misalnya saldo harus seimbang
+    const problem = r.validate?.(payload);
+    if (problem) {
+      setErr(problem);
+      return;
+    }
+
+    setSaving(true);
     try {
       if (isEdit) await api.put(`${r.path}/${row.id}`, payload);
       else await api.post(r.path, payload);
@@ -258,6 +266,10 @@ export default function FormModal({ r, row, onClose, onSaved }) {
                 <button type="button" className="danger" onClick={() => delLine(f.name, i)}>×</button>
               </div>
             ))}
+            {f.footer && (() => {
+              const info = f.footer(v[f.name]);
+              return <div className={`line-footer tone-${info.tone}`}>{info.text}</div>;
+            })()}
             <div><button type="button" className="ghost" onClick={() => addLine(f)}>+ Tambah baris</button></div>
           </fieldset>
         ))}

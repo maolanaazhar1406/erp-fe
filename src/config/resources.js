@@ -199,6 +199,56 @@ export const resources = {
       { name: 'notes', label: 'Catatan', type: 'textarea' },
     ],
   },
+  'opening-balance': {
+    title: 'Saldo Awal', path: '/api/v1/opening-balance', detail: true, create: true,
+    detailHide: ['reference_type', 'reference_id', 'created_by'],
+    listColumns: [
+      { key: 'entry_number', label: 'No. Saldo' },
+      { key: 'entry_date', label: 'Tanggal' },
+      { key: 'description', label: 'Keterangan' },
+      { key: 'total_debit', label: 'Total Debit' },
+      { key: 'total_credit', label: 'Total Kredit' },
+      { key: 'is_balanced', label: 'Seimbang' },
+    ],
+    // Dijalankan sebelum request dikirim. Mengembalikan pesan error, atau null jika valid.
+    validate: p => {
+      const lines = p.lines || [];
+      const sum = k => lines.reduce((s, l) => s + (Number(l[k]) || 0), 0);
+      const fmt = n => Number(n).toLocaleString('id-ID');
+      if (lines.length < 2) return 'Saldo awal minimal terdiri dari dua baris akun.';
+      if (lines.some(l => !l.account_id)) return 'Setiap baris harus memilih akun.';
+      if (lines.some(l => !(l.debit > 0) && !(l.credit > 0))) return 'Setiap baris harus berisi debit atau kredit.';
+      if (lines.some(l => l.debit > 0 && l.credit > 0)) return 'Satu baris hanya boleh berisi debit atau kredit, tidak keduanya.';
+      const d = sum('debit');
+      const c = sum('credit');
+      if (d !== c) return `Total debit (${fmt(d)}) harus sama dengan total kredit (${fmt(c)}).`;
+      return null;
+    },
+    fields: [
+      { name: 'entry_date', label: 'Tanggal saldo awal', type: 'date', required: true },
+      { name: 'description', label: 'Keterangan', required: true, default: 'Saldo awal' },
+      {
+        name: 'lines', label: 'Saldo per akun', type: 'lines',
+        // Ringkasan keseimbangan di bawah baris, berubah saat user mengetik
+        footer: rows => {
+          const fmt = n => n.toLocaleString('id-ID');
+          const d = rows.reduce((s, l) => s + (Number(l.debit) || 0), 0);
+          const c = rows.reduce((s, l) => s + (Number(l.credit) || 0), 0);
+          if (!d && !c) return { tone: 'muted', text: 'Isi debit dan kredit untuk setiap akun.' };
+          if (d === c) return { tone: 'ok', text: `Seimbang • Total ${fmt(d)}` };
+          return { tone: 'bad', text: `Belum seimbang • Debit ${fmt(d)} · Kredit ${fmt(c)} · Selisih ${fmt(Math.abs(d - c))}` };
+        },
+        fields: [
+          {
+            name: 'account_id', label: 'Akun', type: 'select', optionsFrom: 'accounts', required: true,
+            optionLabel: o => `${o.code} - ${o.name}`,
+          },
+          { name: 'debit', label: 'Debit', type: 'number', default: 0 },
+          { name: 'credit', label: 'Kredit', type: 'number', default: 0 },
+        ],
+      },
+    ],
+  },
   'accounts-payable': { title: 'Hutang (AP)', path: '/api/v1/accounts-payable' },
   'accounts-receivable': { title: 'Piutang (AR)', path: '/api/v1/accounts-receivable' },
 };
@@ -221,7 +271,7 @@ export const menu = [
   { group: 'Pengadaan', items: ['purchase-orders', 'goods-receipts'] },
   { group: 'Inventori', items: ['inventory', 'stock-movements', 'stock-adjustments'] },
   { group: 'Penjualan', items: ['sales-orders'] },
-  { group: 'Keuangan', items: ['accounts', 'journal-entries', 'payments', 'accounts-payable', 'accounts-receivable'] },
+  { group: 'Keuangan', items: ['accounts', 'journal-entries', 'opening-balance', 'payments', 'accounts-payable', 'accounts-receivable'] },
 ];
 // ===== Kolom list per modul (menampilkan kode, bukan ID) =====
 // Jika modul tidak punya listColumns, kolom diambil otomatis dan kolom ID disembunyikan.
@@ -314,6 +364,7 @@ export const PERM = {
   payments: 'finance',
   'accounts-payable': 'finance',
   'accounts-receivable': 'finance',
+  'opening-balance': 'finance',
 };
 
 export const permFor = (key, action) => `${PERM[key]}:${action}`;

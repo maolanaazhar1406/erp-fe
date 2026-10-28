@@ -5,7 +5,7 @@ import {
   Users, Database, ShoppingBag, Warehouse, ShoppingCart, Landmark,
   UserRound, ShieldCheck, Package, Tags, Ruler, Handshake, Truck,
   ClipboardList, PackageCheck, ArrowLeftRight, SlidersHorizontal,
-  BookOpen, FileText, CreditCard, Receipt, Wallet, ScrollText,
+  BookOpen, FileText, CreditCard, Receipt, Wallet, ScrollText, Scale,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { resources, menu, permFor } from '../config/resources';
@@ -40,6 +40,7 @@ const ITEM_ICONS = {
   payments: CreditCard,
   'accounts-payable': Receipt,
   'accounts-receivable': Wallet,
+  'opening-balance': Scale,
 };
 
 const SIDEBAR_KEY = 'erp_sidebar_collapsed';

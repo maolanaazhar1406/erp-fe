@@ -16,6 +16,9 @@ import { SkeletonLines, SkeletonTable, Spinner, useDelayed } from '../components
 
 // Kolom yang tidak ditampilkan di list: ID, foreign key, dan id pembuat
 const HIDDEN_AUTO = /^id$|_id$|_by$/;
+// Menyembunyikan field teknis di halaman detail, sesuai detailHide di config
+const visibleFields = (data, hide = []) =>
+  hide.length ? Object.fromEntries(Object.entries(data).filter(([k]) => !hide.includes(k))) : data;
 
 const PRINTABLE = ['purchase-orders', 'sales-orders', 'payments'];
 
@@ -340,7 +343,7 @@ function Detail({ k, r, id }) {
       {!data && !err && busy && <div className="card"><SkeletonLines /></div>}
       {data && (
         <div className={busy ? 'dimmed' : ''}>
-          <DetailView data={data} color={color} />
+          <DetailView data={visibleFields(data, r.detailHide)} color={color} />
         </div>
       )}
 

@@ -2580,3 +2580,27 @@ table tbody tr:hover td {
 table tbody tr:hover td.col-actions {
     background: color-mix(in srgb, var(--accent) 5%, var(--surface));
 }
+
+/* ===== Ringkasan keseimbangan di form baris ===== */
+.line-footer {
+    font-size: 13px;
+    padding: 8px 12px;
+    border-radius: 8px;
+    font-weight: 600;
+}
+
+.line-footer.tone-ok {
+    background: #ecfdf5;
+    color: #047857;
+}
+
+.line-footer.tone-bad {
+    background: #fef2f2;
+    color: #b91c1c;
+}
+
+.line-footer.tone-muted {
+    background: var(--surface-2);
+    color: var(--muted);
+    font-weight: 400;
+}
