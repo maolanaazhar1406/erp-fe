@@ -1,23 +1,29 @@
 import { useState } from 'react';
 import { api, errMsg } from '../api/client';
 import { Spinner } from './Loading';
+import { useConfirm, useToast } from '../context/FeedbackContext';
 
-// Dropdown ubah status yang dipakai di list dan detail.
-// Opsi yang bisa dipilih ditentukan oleh `options`; status saat ini tetap tampil meski tidak ada di opsi.
 export default function StatusControl({ basePath, id, current, options, title, compact = false, onChanged }) {
     const [saving, setSaving] = useState(false);
+    const confirm = useConfirm();
+    const toast = useToast();
     const list = options.includes(current) ? options : [current, ...options];
 
     const change = async next => {
-        const name = title ? ` ${title}` : '';
-        if (!window.confirm(`Ubah status${name} dari "${current}" menjadi "${next}"?`)) return;
+        const ok = await confirm({
+            title: 'Ubah status?',
+            message: `${title || 'Dokumen'}: "${current}" → "${next}".`,
+            confirmText: 'Ubah status',
+        });
+        if (!ok) return;
 
         setSaving(true);
         try {
             await api.patch(`${basePath}/${id}/status`, { status: next });
+            toast.success(`Status diubah menjadi ${next}`);
             onChanged?.(next);
         } catch (e) {
-            alert(errMsg(e));
+            toast.error(errMsg(e), { title: 'Gagal mengubah status' });
         } finally {
             setSaving(false);
         }

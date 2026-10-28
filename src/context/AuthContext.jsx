@@ -1,9 +1,9 @@
-import { createContext, useContext, useState } from 'react';
-import { api, TOKEN_KEY } from '../api/client';
+import { createContext, useCallback, useContext, useEffect, useState } from 'react';
+import { api, getToken, setToken, refreshAccessToken } from '../api/client';
+import { useToast } from './FeedbackContext';
 
 const AuthContext = createContext(null);
 
-// Decode payload JWT (tanpa verifikasi, hanya untuk menampilkan dan cek izin di UI)
 function decodeToken(token) {
   try {
     const base64 = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
@@ -13,27 +13,60 @@ function decodeToken(token) {
   }
 }
 
+// Anggap habis jika kurang dari 30 detik lagi
+const expiresSoon = token => {
+  const p = decodeToken(token);
+  return !p?.exp || p.exp * 1000 - 30000 < Date.now();
+};
+
 export function AuthProvider({ children }) {
-  const [token, setToken] = useState(() => localStorage.getItem(TOKEN_KEY));
+  const toast = useToast();
+  const [token, setTok] = useState(() => getToken());
+  const [ready, setReady] = useState(false);
   const user = token ? decodeToken(token) : null;
   const permissions = new Set(user?.permissions || []);
-
-  // Cek satu permission, misalnya can('purchases:update')
   const can = perm => permissions.has(perm);
+
+  // Saat aplikasi dibuka: jika access token sudah habis, minta yang baru
+  useEffect(() => {
+    let cancelled = false;
+    const t = getToken();
+    if (!t || !expiresSoon(t)) {
+      setReady(true);
+      return;
+    }
+    refreshAccessToken()
+      .then(n => { if (!cancelled) setTok(n); })
+      .catch(() => { if (!cancelled) setTok(null); })
+      .finally(() => { if (!cancelled) setReady(true); });
+    return () => { cancelled = true; };
+  }, []);
+
+  // Refresh gagal di tengah pemakaian: kembali ke login dengan pemberitahuan
+  useEffect(() => {
+    const onExpired = () => {
+      setTok(null);
+      toast.warning('Sesi Anda telah berakhir. Silakan login kembali.', { title: 'Sesi berakhir' });
+    };
+    window.addEventListener('auth:expired', onExpired);
+    return () => window.removeEventListener('auth:expired', onExpired);
+  }, [toast]);
 
   const login = async (username, password) => {
     const { data } = await api.post('/api/v1/auth/login', { username, password });
-    localStorage.setItem(TOKEN_KEY, data.data.token);
     setToken(data.data.token);
+    setTok(data.data.token);
   };
 
-  const logout = () => {
-    localStorage.removeItem(TOKEN_KEY);
+  // Hapus sesi lokal dulu agar UI langsung berpindah, lalu beri tahu server
+  const logout = useCallback(() => {
     setToken(null);
-  };
+    setTok(null);
+    api.post('/api/v1/auth/logout').catch(() => { });
+  }, []);
 
   return (
-    <AuthContext.Provider value={{ token, user, login, logout, can }}>
+    <AuthContext.Provider value={{ token, user, ready, login, logout, can }}>
       {children}
     </AuthContext.Provider>
   );

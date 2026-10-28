@@ -9,9 +9,11 @@ import ResourcePage from './pages/ResourcePage';
 import ReportPage from './pages/ReportPage';
 import Profile from './pages/Profile';
 import Settings from './pages/Settings';
+import { Spinner } from './components/Loading';
 
 function RequireAuth({ children }) {
-  const { token } = useAuth();
+  const { token, ready } = useAuth();
+  if (!ready) return <div className="boot"><Spinner size={28} /></div>;
   return token ? children : <Navigate to="/login" replace />;
 }
 

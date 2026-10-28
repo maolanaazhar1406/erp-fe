@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { Eye, Pencil, Trash2 } from 'lucide-react';
+import { Eye, Pencil, Trash2, Search, X, Inbox } from 'lucide-react';
 import { api, errMsg } from '../api/client';
 import { resources, permFor } from '../config/resources';
 import { useAuth } from '../context/AuthContext';
+import { useConfirm, useToast } from '../context/FeedbackContext';
 import { fmt, label } from '../components/DataView';
 import DetailView, { colorFor } from '../components/DetailView';
 import FormModal from '../components/FormModal';
@@ -14,7 +15,6 @@ import { SkeletonLines, SkeletonTable, Spinner, useDelayed } from '../components
 // Kolom yang tidak ditampilkan di list: ID, foreign key, dan id pembuat
 const HIDDEN_AUTO = /^id$|_id$|_by$/;
 
-// Kolom otomatis: hanya nilai sederhana, tanpa ID, dan tanpa status (ditampilkan sendiri)
 function autoColumns(row, hasStatus) {
   return Object.keys(row)
     .filter(c => row[c] === null || typeof row[c] !== 'object')
@@ -22,6 +22,19 @@ function autoColumns(row, hasStatus) {
     .filter(c => !(hasStatus && c === 'status'))
     .slice(0, 8)
     .map(c => ({ key: c, label: label(c) }));
+}
+
+// Nama dokumen untuk judul dialog dan toast
+const rowLabel = row =>
+  row.po_number || row.so_number || row.gr_number || row.payment_number || row.code || row.name || `#${row.id}`;
+
+function useDebounced(value, delay = 300) {
+  const [v, setV] = useState(value);
+  useEffect(() => {
+    const t = setTimeout(() => setV(value), delay);
+    return () => clearTimeout(t);
+  }, [value, delay]);
+  return v;
 }
 
 export default function ResourcePage() {
@@ -38,9 +51,14 @@ export default function ResourcePage() {
 
 function List({ k, r }) {
   const { can } = useAuth();
+  const toast = useToast();
+  const confirm = useConfirm();
+
   const [rows, setRows] = useState([]);
   const [meta, setMeta] = useState(null);
   const [page, setPage] = useState(1);
+  const [q, setQ] = useState('');
+  const qd = useDebounced(q.trim(), 300);
   const [refresh, setRefresh] = useState(0);
   const [modal, setModal] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -55,12 +73,15 @@ function List({ k, r }) {
   const canRemove = Boolean(r.remove) && can(permFor(k, 'delete'));
   const canStatus = hasStatus && can(permFor(k, 'update'));
 
+  // Kata kunci berubah: kembali ke halaman pertama
+  useEffect(() => { setPage(1); }, [qd]);
+
   useEffect(() => {
     if (r.list === false) return;
     let cancelled = false;
     setLoading(true);
     setErr('');
-    api.get(r.path, { params: { page, per_page: 10 } })
+    api.get(r.path, { params: { page, per_page: 10, q: qd || undefined } })
       .then(({ data }) => {
         if (cancelled) return;
         setRows(data.data || []);
@@ -73,22 +94,29 @@ function List({ k, r }) {
         setLoaded(true);
       });
     return () => { cancelled = true; };
-  }, [r, page, refresh]);
+  }, [r, page, refresh, qd]);
 
   const remove = async row => {
-    if (!window.confirm('Hapus data ini?')) return;
+    const ok = await confirm({
+      title: 'Hapus data?',
+      message: `"${rowLabel(row)}" akan dihapus permanen dan tidak bisa dikembalikan.`,
+      confirmText: 'Hapus',
+      danger: true,
+    });
+    if (!ok) return;
+
     setDeletingId(row.id);
     try {
       await api.delete(`${r.path}/${row.id}`);
+      toast.success(`${rowLabel(row)} berhasil dihapus`);
       setRefresh(x => x + 1);
     } catch (e) {
-      alert(errMsg(e));
+      toast.error(errMsg(e), { title: 'Gagal menghapus' });
     } finally {
       setDeletingId(null);
     }
   };
 
-  // Pakai listColumns jika ada, jika tidak pakai kolom otomatis
   const columns = r.listColumns || autoColumns(rows[0] || {}, hasStatus);
   const totalPages = meta ? Math.max(1, Math.ceil(meta.total / meta.per_page)) : 1;
 
@@ -98,7 +126,19 @@ function List({ k, r }) {
   } else if (rows.length === 0 && busy) {
     content = <SkeletonTable rows={6} cols={5} />;
   } else if (rows.length === 0 && loaded) {
-    content = <p className="muted">Tidak ada data.</p>;
+    content = qd ? (
+      <div className="empty">
+        <Inbox size={28} />
+        <b>Tidak ada hasil</b>
+        <span>Coba kata kunci lain untuk "{qd}".</span>
+      </div>
+    ) : (
+      <div className="empty">
+        <Inbox size={28} />
+        <b>Belum ada data</b>
+        {canCreate && <button onClick={() => setModal({})}>+ Tambah pertama</button>}
+      </div>
+    );
   } else if (rows.length === 0) {
     content = null;
   } else {
@@ -124,7 +164,7 @@ function List({ k, r }) {
                         id={row.id}
                         current={row.status}
                         options={r.statuses}
-                        title={row.po_number || row.so_number || row.code || `#${row.id}`}
+                        title={rowLabel(row)}
                         compact
                         onChanged={() => setRefresh(x => x + 1)}
                       />
@@ -171,9 +211,33 @@ function List({ k, r }) {
         <h2>{r.title}</h2>
         {canCreate && <button onClick={() => setModal({})}>+ Tambah</button>}
       </div>
+
       <div className="card">
+        {r.list !== false && (
+          <div className="table-tools">
+            <div className="tbl-search">
+              <Search size={16} />
+              <input
+                value={q}
+                onChange={e => setQ(e.target.value)}
+                placeholder={`Cari ${r.title.toLowerCase()}...`}
+                aria-label="Cari data"
+              />
+              {q && (
+                <button className="tbl-clear" onClick={() => setQ('')} aria-label="Hapus pencarian">
+                  <X size={14} />
+                </button>
+              )}
+            </div>
+            {qd && meta && (
+              <span className="muted">{meta.total} hasil untuk "{qd}"</span>
+            )}
+          </div>
+        )}
+
         {err && <p className="error">{err}</p>}
         {content}
+
         {meta && r.list !== false && (
           <div className="row" style={{ marginTop: 12, justifyContent: 'flex-end' }}>
             {busy && <Spinner size={14} />}
@@ -183,12 +247,18 @@ function List({ k, r }) {
           </div>
         )}
       </div>
+
       {modal && (
         <FormModal
           r={r}
           row={modal.row}
           onClose={() => setModal(null)}
-          onSaved={() => { setModal(null); setRefresh(x => x + 1); }}
+          onSaved={() => {
+            const wasEdit = Boolean(modal?.row);
+            setModal(null);
+            setRefresh(x => x + 1);
+            toast.success(wasEdit ? 'Perubahan berhasil disimpan' : 'Data berhasil ditambahkan');
+          }}
         />
       )}
     </>
@@ -197,6 +267,7 @@ function List({ k, r }) {
 
 function Detail({ k, r, id }) {
   const { can } = useAuth();
+  const toast = useToast();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [edit, setEdit] = useState(false);
@@ -230,7 +301,7 @@ function Detail({ k, r, id }) {
                 id={id}
                 current={data.status}
                 options={r.statuses}
-                title={data.po_number || data.so_number || `#${id}`}
+                title={rowLabel(data)}
                 onChanged={() => setRefresh(x => x + 1)}
               />
             ) : (
@@ -254,7 +325,11 @@ function Detail({ k, r, id }) {
           r={r}
           row={data}
           onClose={() => setEdit(false)}
-          onSaved={() => { setEdit(false); setRefresh(x => x + 1); }}
+          onSaved={() => {
+            setEdit(false);
+            setRefresh(x => x + 1);
+            toast.success('Perubahan berhasil disimpan');
+          }}
         />
       )}
     </>

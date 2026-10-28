@@ -1842,3 +1842,249 @@ label.switch {
     animation: none !important;
     transition: none !important;
 }
+
+/* ===== Refresh: boot screen ===== */
+.boot {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* ===== Toast ===== */
+.toast-stack {
+    position: fixed;
+    right: 20px;
+    bottom: 20px;
+    z-index: 300;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    width: min(380px, calc(100vw - 40px));
+    pointer-events: none;
+}
+
+.toast {
+    pointer-events: auto;
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 14px 14px 14px 16px;
+    background: var(--surface);
+    color: var(--text);
+    border: 1px solid var(--line);
+    border-left: 4px solid var(--tc);
+    border-radius: 12px;
+    box-shadow: 0 12px 30px rgba(0, 0, 0, .18);
+    animation: toastIn .28s cubic-bezier(.2, .8, .2, 1) both;
+}
+
+.toast.leaving {
+    animation: toastOut .25s ease both;
+}
+
+.toast>svg {
+    color: var(--tc);
+    flex-shrink: 0;
+    margin-top: 1px;
+}
+
+.toast-body {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    flex: 1;
+    min-width: 0;
+    font-size: 14px;
+}
+
+.toast-body b {
+    font-size: 14px;
+}
+
+.toast-body span {
+    color: var(--muted);
+    word-break: break-word;
+}
+
+.toast-x {
+    background: transparent;
+    color: var(--muted);
+    padding: 2px;
+    border-radius: 6px;
+    display: inline-flex;
+}
+
+.toast-x:hover {
+    background: var(--surface-2);
+    color: var(--text);
+}
+
+.toast-success {
+    --tc: #059669;
+}
+
+.toast-error {
+    --tc: #dc2626;
+}
+
+.toast-info {
+    --tc: #2563eb;
+}
+
+.toast-warning {
+    --tc: #d97706;
+}
+
+@keyframes toastIn {
+    from {
+        opacity: 0;
+        transform: translateX(24px) scale(.98);
+    }
+
+    to {
+        opacity: 1;
+        transform: none;
+    }
+}
+
+@keyframes toastOut {
+    to {
+        opacity: 0;
+        transform: translateX(24px);
+    }
+}
+
+/* ===== Dialog konfirmasi ===== */
+.confirm-overlay {
+    z-index: 250;
+}
+
+.confirm-box {
+    background: var(--surface);
+    color: var(--text);
+    border-radius: 18px;
+    padding: 28px 24px 20px;
+    width: min(420px, 100%);
+    text-align: center;
+    box-shadow: 0 24px 60px rgba(0, 0, 0, .3);
+    animation: popScale .2s cubic-bezier(.2, .8, .2, 1) both;
+}
+
+@keyframes popScale {
+    from {
+        opacity: 0;
+        transform: scale(.94);
+    }
+
+    to {
+        opacity: 1;
+        transform: none;
+    }
+}
+
+.confirm-icon {
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    margin: 0 auto 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: color-mix(in srgb, var(--accent) 15%, transparent);
+    color: var(--accent);
+}
+
+.confirm-icon.danger {
+    background: #fee2e2;
+    color: #dc2626;
+}
+
+[data-theme="dark"] .confirm-icon.danger {
+    background: rgba(239, 68, 68, .18);
+}
+
+.confirm-box h3 {
+    margin-bottom: 6px;
+}
+
+.confirm-box p {
+    margin: 0 0 20px;
+    line-height: 1.5;
+}
+
+.confirm-actions {
+    justify-content: center;
+}
+
+.confirm-actions button {
+    min-width: 110px;
+    padding: 9px 16px;
+}
+
+/* ===== Pencarian tabel ===== */
+.table-tools {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+}
+
+.tbl-search {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 1;
+    max-width: 360px;
+    min-width: 200px;
+    padding: 0 10px;
+    height: 38px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: var(--input);
+    color: var(--muted);
+}
+
+.tbl-search:focus-within {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 20%, transparent);
+}
+
+.tbl-search input {
+    border: 0;
+    background: transparent;
+    padding: 0;
+    height: 100%;
+    box-shadow: none;
+    outline: none;
+    color: var(--text);
+}
+
+.tbl-clear {
+    background: transparent;
+    color: var(--muted);
+    padding: 2px;
+    display: inline-flex;
+    border-radius: 6px;
+}
+
+.tbl-clear:hover {
+    color: var(--text);
+    background: var(--surface-2);
+}
+
+/* ===== State kosong ===== */
+.empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    padding: 32px 16px;
+    color: var(--muted);
+    text-align: center;
+}
+
+.empty b {
+    color: var(--text);
+}

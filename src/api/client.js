@@ -2,15 +2,41 @@ import axios from 'axios';
 import { loadingState } from './loading';
 
 export const TOKEN_KEY = 'erp_token';
+const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080';
 
-export const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080',
-});
+export const getToken = () => localStorage.getItem(TOKEN_KEY);
+export const setToken = t => (t ? localStorage.setItem(TOKEN_KEY, t) : localStorage.removeItem(TOKEN_KEY));
+
+// Client utama: mengirim cookie refresh, dan access token di header
+export const api = axios.create({ baseURL: BASE_URL, withCredentials: true });
+
+// Client polos untuk refresh, tanpa interceptor agar tidak terjadi loop
+const raw = axios.create({ baseURL: BASE_URL, withCredentials: true });
+
+// Beberapa request yang gagal bersamaan hanya memicu satu kali refresh
+let refreshing = null;
+export function refreshAccessToken() {
+  if (!refreshing) {
+    refreshing = raw.post('/api/v1/auth/refresh')
+      .then(({ data }) => {
+        const t = data.data.token;
+        setToken(t);
+        return t;
+      })
+      .catch(err => {
+        setToken(null);
+        window.dispatchEvent(new Event('auth:expired'));
+        throw err;
+      })
+      .finally(() => { refreshing = null; });
+  }
+  return refreshing;
+}
 
 api.interceptors.request.use(config => {
   loadingState.start();
-  const token = localStorage.getItem(TOKEN_KEY);
-  if (token) config.headers.Authorization = `Bearer ${token}`;
+  const t = getToken();
+  if (t) config.headers.Authorization = `Bearer ${t}`;
   return config;
 });
 
@@ -19,11 +45,21 @@ api.interceptors.response.use(
     loadingState.end();
     return res;
   },
-  err => {
+  async err => {
     loadingState.end();
-    if (err.response?.status === 401 && !window.location.pathname.startsWith('/login')) {
-      localStorage.removeItem(TOKEN_KEY);
-      window.location.href = '/login';
+    const cfg = err.config;
+    const isAuthCall = cfg?.url?.includes('/api/v1/auth/');
+
+    // Access token habis: refresh lalu ulangi request sekali
+    if (err.response?.status === 401 && cfg && !cfg._retry && !isAuthCall) {
+      cfg._retry = true;
+      try {
+        const t = await refreshAccessToken();
+        cfg.headers.Authorization = `Bearer ${t}`;
+        return api(cfg);
+      } catch {
+        return Promise.reject(err);
+      }
     }
     return Promise.reject(err);
   }
