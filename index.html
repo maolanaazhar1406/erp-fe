@@ -6,6 +6,16 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Small ERP</title>
 </head>
+<script>
+  (function () {
+    try {
+      var p = JSON.parse(localStorage.getItem('erp_prefs') || '{}');
+      var sys = matchMedia('(prefers-color-scheme: dark)').matches;
+      var dark = p.theme === 'dark' || ((!p.theme || p.theme === 'system') && sys);
+      document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+    } catch (e) { }
+  })();
+</script>
 
 <body>
   <div id="root"></div>

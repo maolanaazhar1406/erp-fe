@@ -1,6 +1,7 @@
-// Renderer generik: menampilkan object/array apa pun (detail, laporan) sebagai tabel/key-value
+// Renderer generik: menampilkan object/array apa pun (laporan, dan fallback) sebagai tabel/key-value
+import { formatDate } from '../utils/date';
+
 const isObj = v => v !== null && typeof v === 'object';
-const ISO_DT = /^\d{4}-\d{2}-\d{2}T/;
 
 export const label = k => k.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
 
@@ -8,7 +9,10 @@ export const fmt = v => {
   if (v === null || v === undefined || v === '') return '-';
   if (typeof v === 'boolean') return v ? 'Ya' : 'Tidak';
   if (typeof v === 'number') return v.toLocaleString('id-ID');
-  if (typeof v === 'string' && ISO_DT.test(v)) return new Date(v).toLocaleString('id-ID');
+  if (typeof v === 'string') {
+    const d = formatDate(v);
+    if (d) return d;
+  }
   if (isObj(v)) return JSON.stringify(v);
   return String(v);
 };

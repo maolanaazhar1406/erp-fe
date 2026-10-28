@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
-import { NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { NavLink, Outlet } from 'react-router-dom';
 import {
-  LayoutDashboard, ChevronDown, ChevronLeft, ChevronRight, LogOut, BarChart3,
+  LayoutDashboard, ChevronDown, ChevronLeft, ChevronRight, BarChart3, Layers,
   Users, Database, ShoppingBag, Warehouse, ShoppingCart, Landmark,
   UserRound, ShieldCheck, Package, Tags, Ruler, Handshake, Truck,
   ClipboardList, PackageCheck, ArrowLeftRight, SlidersHorizontal,
@@ -9,6 +9,8 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { resources, menu, permFor } from '../config/resources';
+import Avatar from './Avatar';
+import Topbar from './Topbar';
 
 const GROUP_ICONS = {
   'Pengguna': Users,
@@ -43,9 +45,7 @@ const ITEM_ICONS = {
 const SIDEBAR_KEY = 'erp_sidebar_collapsed';
 
 export default function Layout() {
-  const { user, logout, can } = useAuth();
-  const nav = useNavigate();
-
+  const { user, can } = useAuth();
   const [collapsed, setCollapsed] = useState(() => localStorage.getItem(SIDEBAR_KEY) === '1');
   const [openGroups, setOpenGroups] = useState({});
 
@@ -55,11 +55,6 @@ export default function Layout() {
 
   const isOpen = group => openGroups[group] ?? true;
   const toggleGroup = group => setOpenGroups(o => ({ ...o, [group]: !isOpen(group) }));
-
-  const onLogout = () => {
-    logout();
-    nav('/login');
-  };
 
   // Sembunyikan modul yang tidak punya izin read, lalu grup yang jadi kosong
   const visibleMenu = menu
@@ -71,7 +66,11 @@ export default function Layout() {
     <div className={`layout${collapsed ? ' collapsed' : ''}`}>
       <aside>
         <div className="brand">
-          {!collapsed && <span>Small ERP</span>}
+          <div className="brand-mark"><Layers size={18} /></div>
+          <div className="brand-text">
+            <b>Small ERP</b>
+            <small>Manajemen bisnis</small>
+          </div>
           <button
             className="icon-btn"
             onClick={() => setCollapsed(c => !c)}
@@ -81,73 +80,78 @@ export default function Layout() {
           </button>
         </div>
 
-        <NavLink to="/" end className="nav-item" title="Dashboard">
-          <LayoutDashboard size={18} />
-          {!collapsed && <span>Dashboard</span>}
-        </NavLink>
+        <nav className="side-nav">
+          <NavLink to="/" end className="nav-item" title="Dashboard">
+            <LayoutDashboard size={18} />
+            {!collapsed && <span>Dashboard</span>}
+          </NavLink>
 
-        {visibleMenu.map(g => {
-          const GroupIcon = GROUP_ICONS[g.group] || Database;
-          const open = isOpen(g.group);
-          const show = open || collapsed;
-          return (
-            <div className="nav-group" key={g.group}>
-              <button className="group-head" onClick={() => toggleGroup(g.group)} title={g.group}>
-                <GroupIcon size={18} />
-                {!collapsed && (
-                  <>
-                    <span>{g.group}</span>
-                    <ChevronDown size={16} className={`chev${open ? ' open' : ''}`} />
-                  </>
-                )}
-              </button>
+          {visibleMenu.map(g => {
+            const GroupIcon = GROUP_ICONS[g.group] || Database;
+            const open = isOpen(g.group);
+            const show = open || collapsed;
+            return (
+              <div className="nav-group" key={g.group}>
+                <button className="group-head" onClick={() => toggleGroup(g.group)} title={g.group}>
+                  <GroupIcon size={18} />
+                  {!collapsed && (
+                    <>
+                      <span>{g.group}</span>
+                      <ChevronDown size={16} className={`chev${open ? ' open' : ''}`} />
+                    </>
+                  )}
+                </button>
 
-              <div className={`collapse${show ? ' show' : ''}`}>
-                <div className="collapse-inner">
-                  <div className="nav-items">
-                    {g.items.map((k, i) => {
-                      const Icon = ITEM_ICONS[k] || Package;
-                      return (
-                        <NavLink
-                          key={k}
-                          to={`/r/${k}`}
-                          className="nav-item"
-                          title={resources[k].title}
-                          style={{ '--d': `${i * 40}ms` }}
-                        >
-                          <Icon size={16} />
-                          {!collapsed && <span>{resources[k].title}</span>}
-                        </NavLink>
-                      );
-                    })}
+                <div className={`collapse${show ? ' show' : ''}`}>
+                  <div className="collapse-inner">
+                    <div className="nav-items">
+                      {g.items.map((k, i) => {
+                        const Icon = ITEM_ICONS[k] || Package;
+                        return (
+                          <NavLink
+                            key={k}
+                            to={`/r/${k}`}
+                            className="nav-item"
+                            title={resources[k].title}
+                            style={{ '--d': `${i * 40}ms` }}
+                          >
+                            <Icon size={16} />
+                            {!collapsed && <span>{resources[k].title}</span>}
+                          </NavLink>
+                        );
+                      })}
+                    </div>
                   </div>
                 </div>
               </div>
+            );
+          })}
+
+          {canReports && (
+            <div className="nav-group">
+              <NavLink to="/reports" className="nav-item" title="Laporan">
+                <BarChart3 size={18} />
+                {!collapsed && <span>Laporan</span>}
+              </NavLink>
             </div>
-          );
-        })}
+          )}
+        </nav>
 
-        {canReports && (
-          <div className="nav-group">
-            <NavLink to="/reports" className="nav-item" title="Laporan">
-              <BarChart3 size={18} />
-              {!collapsed && <span>Laporan</span>}
-            </NavLink>
+        <NavLink to="/profile" className="side-user" title="Profil saya">
+          <Avatar name={user?.username} size={34} />
+          <div>
+            <b>{user?.username}</b>
+            <small>{user?.role}</small>
           </div>
-        )}
-
-        <button className="nav-item logout" onClick={onLogout} title="Logout">
-          <LogOut size={18} />
-          {!collapsed && <span>Logout</span>}
-        </button>
+        </NavLink>
       </aside>
 
-      <main>
-        <div className="topbar">
-          <span className="muted">{user?.username} • {user?.role}</span>
-        </div>
-        <Outlet />
-      </main>
+      <div className="content">
+        <Topbar />
+        <main>
+          <Outlet />
+        </main>
+      </div>
     </div>
   );
 }

@@ -223,6 +223,75 @@ export const menu = [
   { group: 'Penjualan', items: ['sales-orders'] },
   { group: 'Keuangan', items: ['accounts', 'journal-entries', 'payments', 'accounts-payable', 'accounts-receivable'] },
 ];
+// ===== Kolom list per modul (menampilkan kode, bukan ID) =====
+// Jika modul tidak punya listColumns, kolom diambil otomatis dan kolom ID disembunyikan.
+Object.assign(resources.payments, {
+  listColumns: [
+    { key: 'payment_number', label: 'No. Pembayaran' },
+    { key: 'payment_type', label: 'Jenis' },
+    { key: 'number', label: 'No. Referensi (SO/PO)' },
+    { key: 'amount', label: 'Jumlah' },
+    { key: 'payment_date', label: 'Tanggal' },
+    { key: 'payment_method', label: 'Metode' },
+  ],
+});
+
+Object.assign(resources['purchase-orders'], {
+  listColumns: [
+    { key: 'po_number', label: 'No. PO' },
+    { key: 'supplier_name', label: 'Supplier' },
+    { key: 'order_date', label: 'Tanggal Order' },
+    { key: 'total_amount', label: 'Total' },
+    { key: 'notes', label: 'Catatan' },
+  ],
+});
+
+Object.assign(resources['sales-orders'], {
+  listColumns: [
+    { key: 'so_number', label: 'No. SO' },
+    { key: 'customer_name', label: 'Pelanggan' },
+    { key: 'order_date', label: 'Tanggal Order' },
+    { key: 'total_amount', label: 'Total' },
+    { key: 'notes', label: 'Catatan' },
+  ],
+});
+
+Object.assign(resources['goods-receipts'], {
+  listColumns: [
+    { key: 'gr_number', label: 'No. GR' },
+    { key: 'po_number', label: 'No. PO' },
+    { key: 'receipt_date', label: 'Tanggal Terima' },
+    { key: 'notes', label: 'Catatan' },
+  ],
+});
+
+Object.assign(resources.products, {
+  listColumns: [
+    { key: 'code', label: 'Kode' },
+    { key: 'name', label: 'Nama Produk' },
+    { key: 'category_name', label: 'Kategori' },
+    { key: 'unit_name', label: 'Satuan' },
+    { key: 'price', label: 'Harga' },
+  ],
+});
+
+Object.assign(resources.customers, {
+  listColumns: [
+    { key: 'code', label: 'Kode' },
+    { key: 'name', label: 'Nama' },
+    { key: 'phone', label: 'Telepon' },
+    { key: 'email', label: 'Email' },
+  ],
+});
+
+Object.assign(resources.suppliers, {
+  listColumns: [
+    { key: 'code', label: 'Kode' },
+    { key: 'name', label: 'Nama' },
+    { key: 'phone', label: 'Telepon' },
+    { key: 'email', label: 'Email' },
+  ],
+});
 
 // Pemetaan modul ke prefix permission backend (lihat router.go).
 // Aksi dibentuk otomatis: `${PERM[key]}:read|create|update|delete`.

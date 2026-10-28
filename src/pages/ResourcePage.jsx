@@ -11,6 +11,19 @@ import StatusControl from '../components/StatusControl';
 import Forbidden from '../components/Forbidden';
 import { SkeletonLines, SkeletonTable, Spinner, useDelayed } from '../components/Loading';
 
+// Kolom yang tidak ditampilkan di list: ID, foreign key, dan id pembuat
+const HIDDEN_AUTO = /^id$|_id$|_by$/;
+
+// Kolom otomatis: hanya nilai sederhana, tanpa ID, dan tanpa status (ditampilkan sendiri)
+function autoColumns(row, hasStatus) {
+  return Object.keys(row)
+    .filter(c => row[c] === null || typeof row[c] !== 'object')
+    .filter(c => !HIDDEN_AUTO.test(c))
+    .filter(c => !(hasStatus && c === 'status'))
+    .slice(0, 8)
+    .map(c => ({ key: c, label: label(c) }));
+}
+
 export default function ResourcePage() {
   const { key, id } = useParams();
   const { can } = useAuth();
@@ -75,12 +88,8 @@ function List({ k, r }) {
     }
   };
 
-  const first = rows[0] || {};
-  // Kolom status disembunyikan karena sudah ditampilkan di kolom sendiri
-  const cols = Object.keys(first)
-    .filter(c => first[c] === null || typeof first[c] !== 'object')
-    .filter(c => !(hasStatus && c === 'status'))
-    .slice(0, 8);
+  // Pakai listColumns jika ada, jika tidak pakai kolom otomatis
+  const columns = r.listColumns || autoColumns(rows[0] || {}, hasStatus);
   const totalPages = meta ? Math.max(1, Math.ceil(meta.total / meta.per_page)) : 1;
 
   let content;
@@ -98,7 +107,7 @@ function List({ k, r }) {
         <table>
           <thead>
             <tr>
-              {cols.map(c => <th key={c}>{label(c)}</th>)}
+              {columns.map(c => <th key={c.key}>{c.label}</th>)}
               {hasStatus && <th>{canStatus ? 'Ubah status' : 'Status'}</th>}
               <th>Aksi</th>
             </tr>
@@ -106,7 +115,7 @@ function List({ k, r }) {
           <tbody>
             {rows.map(row => (
               <tr key={row.id}>
-                {cols.map(c => <td key={c}>{fmt(row[c])}</td>)}
+                {columns.map(c => <td key={c.key}>{fmt(row[c.key])}</td>)}
                 {hasStatus && (
                   <td>
                     {canStatus ? (
@@ -115,7 +124,7 @@ function List({ k, r }) {
                         id={row.id}
                         current={row.status}
                         options={r.statuses}
-                        title={row.po_number || row.so_number || `#${row.id}`}
+                        title={row.po_number || row.so_number || row.code || `#${row.id}`}
                         compact
                         onChanged={() => setRefresh(x => x + 1)}
                       />
