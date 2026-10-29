@@ -13,6 +13,7 @@ import Forbidden from '../components/Forbidden';
 import ExportMenu from '../components/ExportMenu';
 import { fetchAll, exportCSV, exportXLSX } from '../utils/export';
 import { SkeletonLines, SkeletonTable, Spinner, useDelayed } from '../components/Loading';
+import { notifyError } from '../api/client';
 
 // Kolom yang tidak ditampilkan di list: ID, foreign key, dan id pembuat
 const HIDDEN_AUTO = /^id$|_id$|_by$/;
@@ -118,7 +119,7 @@ function List({ k, r }) {
       toast.success(`${rowLabel(row)} berhasil dihapus`);
       setRefresh(x => x + 1);
     } catch (e) {
-      toast.error(errMsg(e), { title: 'Gagal menghapus' });
+      notifyError(toast, e, 'Gagal menghapus');
     } finally {
       setDeletingId(null);
     }

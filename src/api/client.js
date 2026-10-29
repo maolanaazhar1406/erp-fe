@@ -69,3 +69,33 @@ export const errMsg = e => {
   if (e.response?.status === 403) return 'Anda tidak punya izin untuk aksi ini.';
   return e.response?.data?.message || e.response?.data?.error || e.message;
 };
+
+// Pola pesan dari backend untuk penolakan aturan bisnis, dengan terjemahannya
+const BUSINESS_MESSAGES = [
+  [/existing transactions/i, 'Data ini sudah dipakai dalam transaksi, sehingga tidak bisa dihapus.'],
+];
+
+const BUSINESS_STATUS = [409, 422];
+
+const rawMessage = e =>
+  e.response?.data?.message || e.response?.data?.error || e.message || '';
+
+// Penolakan aturan bisnis: status 409/422, atau pesan yang cocok dengan pola di atas
+export const isBusinessRule = e =>
+  BUSINESS_STATUS.includes(e.response?.status) ||
+  BUSINESS_MESSAGES.some(([re]) => re.test(rawMessage(e)));
+
+export function friendlyMessage(e) {
+  const raw = rawMessage(e);
+  const hit = BUSINESS_MESSAGES.find(([re]) => re.test(raw));
+  return hit ? hit[1] : errMsg(e);
+}
+
+// Penolakan aturan bisnis ditampilkan sebagai peringatan, error sistem sebagai error
+export function notifyError(toast, e, title = 'Gagal') {
+  if (isBusinessRule(e)) {
+    toast.warning(friendlyMessage(e), { title: 'Tidak bisa diproses' });
+    return;
+  }
+  toast.error(errMsg(e), { title });
+}

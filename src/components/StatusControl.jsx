@@ -23,7 +23,7 @@ export default function StatusControl({ basePath, id, current, options, title, c
             toast.success(`Status diubah menjadi ${next}`);
             onChanged?.(next);
         } catch (e) {
-            toast.error(errMsg(e), { title: 'Gagal mengubah status' });
+            notifyError(toast, e, 'Gagal mengubah status');
         } finally {
             setSaving(false);
         }
