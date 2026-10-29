@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { api, errMsg } from '../api/client';
 import { resources } from '../config/resources';
 import { Spinner } from './Loading';
@@ -94,7 +94,9 @@ function FieldInput({ f, value, parentValue, onChange, opts }) {
       step={f.type === 'number' ? 'any' : undefined}
       value={value ?? ''}
       required={f.required}
-      onChange={e => onChange(e.target.value)}
+      readOnly={!!f.readOnly}
+      style={f.readOnly ? { background: 'var(--input-ro-bg, #f3f4f6)', cursor: 'not-allowed', color: 'var(--muted, #666)' } : undefined}
+      onChange={f.readOnly ? undefined : e => onChange(e.target.value)}
     />
   );
 }
@@ -106,6 +108,7 @@ export default function FormModal({ r, row, onClose, onSaved }) {
   const [opts, setOpts] = useState({});
   const [saving, setSaving] = useState(false);
   const [filling, setFilling] = useState('');
+  const [lineLoading, setLineLoading] = useState({});
   const [err, setErr] = useState('');
   const fillReq = useRef(0);
 
@@ -201,8 +204,29 @@ export default function FormModal({ r, row, onClose, onSaved }) {
     if (f?.onSelect && val !== '') fillLines(f, val);
   };
 
-  const setLine = (name, i, sub, val) =>
-    setV(s => ({ ...s, [name]: s[name].map((ln, idx) => (idx === i ? { ...ln, [sub]: val } : ln)) }));
+  const setLine = useCallback((name, i, sub, val) =>
+    setV(s => ({ ...s, [name]: s[name].map((ln, idx) => (idx === i ? { ...ln, [sub]: val } : ln)) })), []);
+
+  // Versi setLine yang sadar onLineSelect: fetch data dari API lalu isi field lain dalam baris
+  const setLineField = useCallback((lineName, sf, i, val) => {
+    setLine(lineName, i, sf.name, val);
+    if (!sf.onLineSelect || val === '') return;
+    const key = `${lineName}.${i}`;
+    setLineLoading(prev => ({ ...prev, [key]: true }));
+    api.get(`${sf.onLineSelect.path}/${val}`)
+      .then(({ data }) => {
+        const filled = sf.onLineSelect.fill(data.data || {});
+        setV(s => ({
+          ...s,
+          [lineName]: s[lineName].map((ln, idx) =>
+            idx === i ? { ...ln, ...filled } : ln
+          ),
+        }));
+      })
+      .catch(() => {})
+      .finally(() => setLineLoading(prev => { const n = { ...prev }; delete n[key]; return n; }));
+  }, [setLine]);
+
   const addLine = f => setV(s => ({ ...s, [f.name]: [...s[f.name], emptyLine(f)] }));
   const delLine = (name, i) => setV(s => ({ ...s, [name]: s[name].filter((_, idx) => idx !== i) }));
 
@@ -257,12 +281,26 @@ export default function FormModal({ r, row, onClose, onSaved }) {
             <legend>{f.label}</legend>
             {v[f.name].map((ln, i) => (
               <div className="line" key={i}>
-                {f.fields.map(sf => (
-                  <label key={sf.name}>
-                    {sf.label}
-                    <FieldInput f={sf} value={ln[sf.name]} opts={opts} onChange={val => setLine(f.name, i, sf.name, val)} />
-                  </label>
-                ))}
+                {f.fields.map(sf => {
+                  const loadKey = `${f.name}.${i}`;
+                  const isAutoFilled = !!sf.readOnly;
+                  const isLoading = lineLoading[loadKey];
+                  return (
+                    <label key={sf.name} style={isAutoFilled ? { opacity: isLoading ? 0.5 : 1 } : undefined}>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                        {sf.label}
+                        {isAutoFilled && <span style={{ fontSize: 10, color: 'var(--muted, #888)', fontWeight: 400 }}>(otomatis)</span>}
+                        {isLoading && <Spinner size={11} />}
+                      </span>
+                      <FieldInput
+                        f={{ ...sf, readOnly: isAutoFilled }}
+                        value={ln[sf.name]}
+                        opts={opts}
+                        onChange={val => setLineField(f.name, sf, i, val)}
+                      />
+                    </label>
+                  );
+                })}
                 <button type="button" className="danger" onClick={() => delLine(f.name, i)}>×</button>
               </div>
             ))}

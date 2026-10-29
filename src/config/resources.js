@@ -40,7 +40,8 @@ export const resources = {
       { name: 'description', label: 'Deskripsi', type: 'textarea' },
       { name: 'category_id', label: 'Kategori', type: 'select', optionsFrom: 'product-categories', required: true },
       { name: 'unit_id', label: 'Satuan', type: 'select', optionsFrom: 'units', required: true },
-      { name: 'price', label: 'Harga', type: 'number', required: true },
+      // { name: 'price', label: 'Harga', type: 'number', required: true },
+      { name: 'cost', label: 'Harga', type: 'number', required: true },
     ],
   },
   'product-categories': {
@@ -95,9 +96,16 @@ export const resources = {
       {
         name: 'items', label: 'Item', type: 'lines',
         fields: [
-          { name: 'product_id', label: 'Produk', type: 'select', optionsFrom: 'products', required: true },
+          {
+            name: 'product_id', label: 'Produk', type: 'select', optionsFrom: 'products', required: true,
+            // Saat produk dipilih, ambil detail produk dan isi unit_price dari cost
+            onLineSelect: {
+              path: '/api/v1/products',
+              fill: product => ({ unit_price: product.cost ?? '' }),
+            },
+          },
           { name: 'quantity', label: 'Qty', type: 'number', required: true },
-          { name: 'unit_price', label: 'Harga satuan', type: 'number', required: true },
+          { name: 'unit_price', label: 'Harga satuan', type: 'number', required: true, readOnly: true },
         ],
       },
     ],
@@ -321,7 +329,7 @@ Object.assign(resources.products, {
     { key: 'name', label: 'Nama Produk' },
     { key: 'category_name', label: 'Kategori' },
     { key: 'unit_name', label: 'Satuan' },
-    { key: 'price', label: 'Harga' },
+    { key: 'cost', label: 'Harga' },
   ],
 });
 
